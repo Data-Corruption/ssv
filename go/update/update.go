@@ -8,10 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sprout/go/database/config"
-	"sprout/go/database/datapath"
-	"sprout/go/system/git"
-	"sprout/go/version"
+	"ssv/go/database/config"
+	"ssv/go/database/datapath"
+	"ssv/go/system/git"
+	"ssv/go/version"
 	"sync"
 	"syscall"
 	"time"
@@ -23,8 +23,8 @@ import (
 // Template variables ---------------------------------------------------------
 
 const (
-	RepoURL          = "https://github.com/Data-Corruption/sprout.git"
-	InstallScriptURL = "https://raw.githubusercontent.com/Data-Corruption/sprout/main/scripts/install.sh"
+	RepoURL          = "https://github.com/Data-Corruption/ssv.git"
+	InstallScriptURL = "https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install.sh"
 )
 
 // ----------------------------------------------------------------------------

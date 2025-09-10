@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"sprout/go/commands"
-	"sprout/go/database"
-	"sprout/go/database/config"
-	"sprout/go/database/datapath"
-	"sprout/go/update"
-	"sprout/go/version"
+	"ssv/go/commands"
+	"ssv/go/database"
+	"ssv/go/database/config"
+	"ssv/go/database/datapath"
+	"ssv/go/update"
+	"ssv/go/version"
 
 	"github.com/Data-Corruption/stdx/xlog"
 	"github.com/urfave/cli/v3"
@@ -22,7 +22,7 @@ import (
 
 // Template variables ---------------------------------------------------------
 
-const Name = "sprout" // root command name
+const Name = "ssv" // root command name
 
 // ----------------------------------------------------------------------------
 

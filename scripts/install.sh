@@ -2,7 +2,7 @@
 
 # Target: POSIX Linux x86_64/amd64, user-level install, optional systemd --user unit
 # Requires: curl, gzip, mktemp, install, sha256sum, sed, awk, (and systemd if SERVICE=true)
-# Example: curl -fsSL https://raw.githubusercontent.com/Data-Corruption/sprout/main/scripts/install.sh | sh
+# Example: curl -fsSL https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install.sh | sh
 #   (add '-s -- [VERSION]' after 'sh' for specific version/tag)
 
 set -u
@@ -10,12 +10,12 @@ umask 077
 
 # Template variables ----------------------------------------------------------
 REPO_OWNER="Data-Corruption"
-REPO_NAME="sprout"
+REPO_NAME="ssv"
 
-APP_NAME="sprout"
+APP_NAME="ssv"
 
 SERVICE="true"
-SERVICE_DESC="web server daemon for CLI application sprout"
+SERVICE_DESC="web server daemon for CLI application ssv"
 SERVICE_ARGS="service run"
 
 # Constants -------------------------------------------------------------------
