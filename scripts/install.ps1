@@ -28,10 +28,9 @@ try { $null = & wsl.exe -e true } catch { Fail "Failed to start WSL. Open a WSL 
 
 # if service, ensure systemd is enabled
 if ($Service) {
-  try {
-    $out = & wsl.exe -e sh -lc 'systemctl --user --version 2>/dev/null | head -n1'
-  } catch {
-      Fail @"
+  & wsl.exe -e sh -lc 'systemctl --user --version >/dev/null 2>&1'
+  if ($LASTEXITCODE -ne 0) {
+    Fail @"
 Failed to check systemd status. To enable WSL systemd (user), follow:
 1) In WSL:  sudo sh -c 'printf "[boot]\nsystemd=true\n" >> /etc/wsl.conf'
 2) In Windows:  wsl --shutdown
@@ -75,7 +74,7 @@ function PathSplit([string]$path) {
   if ([string]::IsNullOrEmpty($path)) { @() } else { $path.Split(';') | Where-Object { $_ -ne "" } }
 }
 function PathHas([string]$path, [string]$dir) {
-  (PathSplit $path | Where-Object { $_.TrimEnd('\') -ieq $dir.TrimEnd('\') }) -ne $null
+  $null -ne (PathSplit $path | Where-Object { $_.TrimEnd('\') -ieq $dir.TrimEnd('\') })
 }
 
 $userPath = [Environment]::GetEnvironmentVariable("PATH","User")
