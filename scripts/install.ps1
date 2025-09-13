@@ -1,5 +1,6 @@
 # Transparent WSL app installation script for Windows (non-admin)
-# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 [-Version v1.2.3]
+# Example Powershell Usage:
+#   Set-ExecutionPolicy Bypass -Scope Process -Force; iex "& { $(irm https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install.ps1) }" [-Version v1.2.3]
 
 [CmdletBinding()]
 param(
