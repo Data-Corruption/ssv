@@ -95,6 +95,8 @@ OPTIONAL_APT_DEPS="ccache mold libgoogle-perftools-dev numactl"
 printf "Installing dependencies: $APT_DEPS\n"
 sudo apt-get update -yq && sudo apt-get install -yq $APT_DEPS || fatal "failed to install dependencies via apt-get"
 
+printfSuccess "Dependencies installed"
+
 # Install optionals individually so one miss doesn't block the rest
 printf "Installing optional dependencies: %s\n" "$OPTIONAL_APT_DEPS"
 for pkg in $OPTIONAL_APT_DEPS; do
@@ -102,6 +104,8 @@ for pkg in $OPTIONAL_APT_DEPS; do
     printfWarn "warning: optional package '%s' not installed; continuing" "$pkg"
   fi
 done
+
+printfSuccess "Optional dependencies processed"
 
 # Pre-Build -------------------------------------------------------------------
 # Pick threads based on CPUs and RAM. Conservative to avoid swapping.
@@ -154,7 +158,7 @@ elif [ "$THREADS" -gt "$cpu_max" ]; then
     THREADS=$cpu_max
 fi
 
-printf "Using %s thread(s) (%s). CPUs=%s, RAM≈%s MiB, suggested=%s\n" \
+printf "\nUsing %s thread(s) (%s). CPUs=%s, RAM≈%s MiB, suggested=%s\n" \
        "$THREADS" "$note" "$cpu_max" "$((mem_kb/1024))" "$auto_threads"
 
 # Obtain / Validate Repo ------------------------------------------------------
@@ -174,6 +178,8 @@ printf "Using %s thread(s) (%s). CPUs=%s, RAM≈%s MiB, suggested=%s\n" \
     fi
     # Checkout the requested version in detached HEAD (no local branch)
     git -c advice.detachedHead=false checkout --detach "tags/$version" || fatal "git checkout $version failed"
+
+    printfSuccess "Checked out Verilator $version"
 
     # Auto Configure ----------------------------------------------------------
     # set build envs before configure in case they affect it
