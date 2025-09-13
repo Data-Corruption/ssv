@@ -173,7 +173,7 @@ if [ "$SERVICE" = "true" ] && [ "$service_exists" -eq 1 ]; then
 fi
 
 # Install ---------------------------------------------------------------------
-printf "Installing $APP_NAME ...\n"
+printf "Writing $APP_BIN ...\n"
 install -Dm755 "$gzip_out" "$APP_BIN" || fatal "Failed to install binary"
 
 # Verify install / get version (first line only)
