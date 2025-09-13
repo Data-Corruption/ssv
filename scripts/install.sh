@@ -138,7 +138,7 @@ hash_out="$temp_dir/$BIN_ASSET_NAME_SHA256"
 gzip_out=${dwld_out%".gz"}
 
 printf "Downloading $bin_url ...\n"
-curl_opts="--fail --location --progress-bar --show-error --connect-timeout 5 --retry-all-errors --retry 3 --retry-delay 1 --max-time 300"
+curl_opts="--fail --location --show-error --connect-timeout 5 --retry-all-errors --retry 3 --retry-delay 1 --max-time 300"
 curl $curl_opts -o "$dwld_out" "$bin_url" || fatal "Download of binary failed"
 
 printf "Downloading checksum file %s ...\n" "$bin_url_sha256"

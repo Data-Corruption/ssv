@@ -205,7 +205,7 @@ printf "\nUsing %s thread(s) (%s). CPUs=%s, RAM≈%s MiB, suggested=%s\n" \
 
     # Build --------------------------------------------------------------------
     # Quiet build, but keep a full log for debugging if it fails
-    printf "Building... Full log: $BUILD_LOG\n"
+    printf "Building... (this may take several minutes) Full log: $BUILD_LOG\n"
     if ! make >"$BUILD_LOG" 2>&1; then
         fatal "Build failed. See: $BUILD_LOG for details.\n"
     fi
