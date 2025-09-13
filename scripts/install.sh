@@ -40,8 +40,8 @@ service_was_enabled=0
 service_was_active=0
 
 printfSuccess() { printf '\033[32m%s\033[0m\n' "$@"; }
+printfWarn() { printf '\033[33m%s\033[0m\n' "$@" >&2; }
 printfErr() { printf '\033[31m%s\033[0m\n' "$@" >&2; }
-
 fatal() { printfErr "$@"; exit 1; }
 
 rollback() {
@@ -169,7 +169,10 @@ if [ "$SERVICE" = "true" ] && [ "$service_exists" -eq 1 ]; then
 fi
 
 # Install ---------------------------------------------------------------------
-printf "Installing binary ...\n"
+# install verilator "curl -fsSL https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install_verilator.sh | sh"
+curl -fsSL https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install_verilator.sh | sh || printfErr "Failed to install verilator dependency"
+
+printf "Installing $APP_NAME ...\n"
 install -Dm755 "$gzip_out" "$APP_BIN" || fatal "Failed to install binary"
 
 # Verify install / get version (first line only)
