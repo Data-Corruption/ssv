@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Target: POSIX Linux (APT-only) x86_64/amd64, run-in-place verilator install
-# Example: curl -fsSL https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install_verilator.sh | sh [version=<version>] [threads=<n>]
+# Example: curl -fsSL https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install_verilator.sh | sh [-s [version=<version>] [threads=<n>]]
 
 set -u
 umask 077
