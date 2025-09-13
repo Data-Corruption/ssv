@@ -28,7 +28,7 @@ var SchemaRecord = map[string]schema{
 	"v1.0.0": {
 		"version":         &value[string]{"v1.0.0"},
 		"logLevel":        &value[string]{"warn"},
-		"port":            &value[int]{8080},
+		"port":            &value[int]{28080},
 		"useTLS":          &value[bool]{false},
 		"tlsKeyPath":      &value[string]{""},
 		"tlsCertPath":     &value[string]{""},

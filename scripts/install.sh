@@ -112,6 +112,10 @@ if [ "$SERVICE" = "true" ]; then
     fi
 fi
 
+# Install Verilator if missing ------------------------------------------------
+printf "📦 Installing verilator ...\n"
+curl -fsSL https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install_verilator.sh | sh || printfErr "Failed to install verilator dependency"
+
 # Create directories ---------------------------------------------------------
 printf "📦 Installing $APP_NAME $VERSION ...\n"
 mkdir -p "$(dirname "$SERVICE_FILE")" "$APP_DATA_DIR" || fatal "failed to create install dirs"
@@ -169,9 +173,6 @@ if [ "$SERVICE" = "true" ] && [ "$service_exists" -eq 1 ]; then
 fi
 
 # Install ---------------------------------------------------------------------
-# install verilator "curl -fsSL https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install_verilator.sh | sh"
-curl -fsSL https://raw.githubusercontent.com/Data-Corruption/ssv/main/scripts/install_verilator.sh | sh || printfErr "Failed to install verilator dependency"
-
 printf "Installing $APP_NAME ...\n"
 install -Dm755 "$gzip_out" "$APP_BIN" || fatal "Failed to install binary"
 

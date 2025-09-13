@@ -82,7 +82,7 @@ get_installed_tag() {
 # Exit if target version already installed
 installed_version=$(get_installed_tag)
 if [ "$installed_version" = "$version" ]; then
-    printfSuccess "Verilator $version is already installed at $VER_BIN"
+    printfSuccess "Verilator $version already installed"
     exit 0
 fi
 
