@@ -89,6 +89,6 @@ if (-not (PathHas $userPath $shimDir)) {
 
 if ($Service) {
   Write-Host ""
-  Write-Host "Note! to manage the service you'll need to enter WSL first via 'wsl'"
+  Write-Host "Note! to manually control the service you'll need to enter WSL first via 'wsl'"
   Write-Host "Otherwise freely use the app as a native Windows cli application."
 }

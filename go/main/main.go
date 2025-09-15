@@ -152,6 +152,7 @@ func run() (int, error) {
 			commands.Update,
 			commands.UpdateToggleNotify,
 			commands.Service,
+			commands.Verilator,
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			// insert app name into context
