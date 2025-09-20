@@ -15,13 +15,24 @@ Database Layout:
 
 Config - see config package for details.
 
-Add other db info here.
+User:
+    user.<id> -> User struct (JSON)
+	email.<sha256(email)> -> user.<id> (hashed just to ensure it's key safe, not for security)
+	invite.<sha256(token)> -> user.<id> (for claiming account / initial email verification)
+	email_edit.<sha256(token)> -> user.<id> (for email change verification)
+	password_edit.<sha256(token)> -> user.<id> (for password reset)
+
+Session:
+	session.<sha256(token)> -> Session struct (JSON)
+	user_sessions.<sha256(user_id)> -> list of session.<sha256(token)> (JSON array)
 
 */
 
 const (
-	ConfigDBIName = "config"
-	// Add more DBI names as needed, e.g., UserDBIName, SessionDBIName, etc. Also update the slice below to include them.
+	ConfigDBIName  = "config"
+	UserDBIName    = "user"
+	SessionDBIName = "session"
+	// Add more DBI names as needed, e.g. Also update the slice below to include them.
 	// WARNING: If you add more DBIs you'll need to clean and reinitialize the database from scratch pretty sure.
 )
 
@@ -44,7 +55,7 @@ func New(ctx context.Context) (*wrap.DB, error) {
 		return nil, errors.New("nexus data path not set before database initialization")
 	}
 	db, _, err := wrap.New(filepath.Join(path, "db"),
-		[]string{ConfigDBIName}, // If you add more DBIs, update this slice as well.
+		[]string{ConfigDBIName, UserDBIName, SessionDBIName},
 	)
 	if err != nil {
 		db.Close()

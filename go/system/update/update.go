@@ -8,10 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"ssv/go/app"
 	"ssv/go/database/config"
 	"ssv/go/database/datapath"
 	"ssv/go/system/git"
-	"ssv/go/version"
 	"sync"
 	"syscall"
 	"time"
@@ -40,11 +40,11 @@ var (
 // It returns true if an update is available, false otherwise.
 // When running a dev build (e.g. with `vX.X.X`), it returns false without checking.
 func Check(ctx context.Context) (bool, error) {
-	currentVersion := version.FromContext(ctx)
-	if currentVersion == "" {
-		return false, fmt.Errorf("failed to get appVersion from context")
+	appData, ok := app.FromContext(ctx)
+	if !ok {
+		return false, fmt.Errorf("failed to get appData from context")
 	}
-	if currentVersion == "vX.X.X" {
+	if appData.Version == "vX.X.X" {
 		return false, nil // No version set, no update check needed
 	}
 
@@ -56,8 +56,8 @@ func Check(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
-	updateAvailable := semver.Compare(latest, currentVersion) > 0
-	xlog.Debugf(ctx, "Latest version: %s, Current version: %s, Update available: %t", latest, currentVersion, updateAvailable)
+	updateAvailable := semver.Compare(latest, appData.Version) > 0
+	xlog.Debugf(ctx, "Latest version: %s, Current version: %s, Update available: %t", latest, appData.Version, updateAvailable)
 
 	// update config
 	if err := config.Set(ctx, "updateAvailable", updateAvailable); err != nil {
@@ -77,13 +77,12 @@ func Update(ctx context.Context, detach bool) error {
 		return fmt.Errorf("update already initiated recently, please wait a bit before trying again")
 	}
 
-	currentVersion := version.FromContext(ctx)
-	if currentVersion == "" {
-		return fmt.Errorf("current version not found")
+	appData, ok := app.FromContext(ctx)
+	if !ok {
+		return fmt.Errorf("failed to get appData from context")
 	}
-	if currentVersion == "vX.X.X" {
-		fmt.Println("Dev build detected, skipping update.")
-		return nil
+	if appData.Version == "vX.X.X" {
+		return nil // No version set, no update check needed
 	}
 
 	lCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -94,7 +93,7 @@ func Update(ctx context.Context, detach bool) error {
 		return err
 	}
 
-	updateAvailable := semver.Compare(latest, currentVersion) > 0
+	updateAvailable := semver.Compare(latest, appData.Version) > 0
 	if !updateAvailable {
 		fmt.Println("No updates available.")
 		return nil

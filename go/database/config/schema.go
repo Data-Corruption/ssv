@@ -28,10 +28,10 @@ var SchemaRecord = map[string]schema{
 	"v1.0.0": {
 		"version":         &value[string]{"v1.0.0"},
 		"logLevel":        &value[string]{"warn"},
+		"host":            &value[string]{"localhost"},
 		"port":            &value[int]{28080},
-		"useTLS":          &value[bool]{false},
-		"tlsKeyPath":      &value[string]{""},
-		"tlsCertPath":     &value[string]{""},
+		"proxyPort":       &value[int]{0}, // 0 means no proxy
+		"proxyTLS":        &value[bool]{true},
 		"updateNotify":    &value[bool]{true},
 		"lastUpdateCheck": &value[string]{time.Now().Format(time.RFC3339)},
 		"updateAvailable": &value[bool]{false},

@@ -5,23 +5,25 @@ import (
 	"fmt"
 	"net/http"
 	"ssv/go/database/config"
-	"ssv/go/sdnotify"
+	"ssv/go/system/sdnotify"
 
 	"github.com/Data-Corruption/stdx/xhttp"
 	"github.com/Data-Corruption/stdx/xlog"
 )
 
-type ctxKey struct{}
+type urlPrefixCtxKey struct{}
 
-func IntoContext(ctx context.Context, srv *xhttp.Server) context.Context {
-	return context.WithValue(ctx, ctxKey{}, srv)
+// format: https://example.com:port/ :port being omitted if 80/443
+func UrlPrefixIntoContext(ctx context.Context, urlPrefix string) context.Context {
+	return context.WithValue(ctx, urlPrefixCtxKey{}, urlPrefix)
 }
 
-func FromContext(ctx context.Context) *xhttp.Server {
-	if srv, ok := ctx.Value(ctxKey{}).(*xhttp.Server); ok {
-		return srv
+// format: https://example.com:port/ :port being omitted if 80/443
+func UrlPrefixFromContext(ctx context.Context) string {
+	if urlPrefix, ok := ctx.Value(urlPrefixCtxKey{}).(string); ok {
+		return urlPrefix
 	}
-	return nil
+	return ""
 }
 
 func New(ctx context.Context, handler http.Handler) (*xhttp.Server, error) {
@@ -30,34 +32,24 @@ func New(ctx context.Context, handler http.Handler) (*xhttp.Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port from config: %w", err)
 	}
-	useTLS, err := config.Get[bool](ctx, "useTLS")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get useTLS from config: %w", err)
+	urlPrefix := UrlPrefixFromContext(ctx)
+	if urlPrefix == "" {
+		xlog.Warnf(ctx, "urlPrefix not set in context, defaulting to localhost")
+		urlPrefix = fmt.Sprintf("http://localhost:%d/", port)
 	}
-	tlsKeyPath, err := config.Get[string](ctx, "tlsKeyPath")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tlsKeyPath from config: %w", err)
-	}
-	tlsCertPath, err := config.Get[string](ctx, "tlsCertPath")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tlsCertPath from config: %w", err)
-	}
-
 	// create http server
 	var srv *xhttp.Server
 	srv, err = xhttp.NewServer(&xhttp.ServerConfig{
-		Addr:        fmt.Sprintf(":%d", port),
-		UseTLS:      useTLS,
-		TLSKeyPath:  tlsKeyPath,
-		TLSCertPath: tlsCertPath,
-		Handler:     handler,
+		Addr:    fmt.Sprintf(":%d", port),
+		UseTLS:  false,
+		Handler: handler,
 		AfterListen: func() {
 			// tell systemd we're ready
 			status := fmt.Sprintf("Listening on %s", srv.Addr())
 			if err := sdnotify.Ready(status); err != nil {
 				xlog.Warnf(ctx, "sd_notify READY failed: %v", err)
 			}
-			fmt.Printf("Server is listening on http://localhost%s\n", srv.Addr())
+			fmt.Printf("Server is listening on %s\n", urlPrefix)
 		},
 		OnShutdown: func() {
 			// tell systemd we’re stopping

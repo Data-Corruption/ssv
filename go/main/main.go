@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
+	"ssv/go/app"
 	"ssv/go/commands"
 	"ssv/go/database"
 	"ssv/go/database/config"
 	"ssv/go/database/datapath"
-	"ssv/go/update"
-	"ssv/go/version"
+	"ssv/go/system/update"
 
 	"github.com/Data-Corruption/stdx/xlog"
 	"github.com/urfave/cli/v3"
@@ -43,8 +43,8 @@ func run() (int, error) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// insert version for update stuff
-	ctx = version.IntoContext(ctx, Version)
+	appData := app.AppData{Name: Name, Version: Version, UrlPrefix: ""}
+	ctx = app.IntoContext(ctx, appData)
 
 	// get data path
 	dataPath, err := datapath.Get(Name)
@@ -155,8 +155,6 @@ func run() (int, error) {
 			commands.Verilator,
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			// insert app name into context
-			ctx = context.WithValue(ctx, commands.AppNameKey{}, Name)
 			// handle log level override
 			logLevel := cmd.String("log")
 			if logLevel != DefaultLogLevel {

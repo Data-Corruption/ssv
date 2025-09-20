@@ -6,22 +6,15 @@ import (
 	"context"
 	"fmt"
 	"ssv/go/database/config"
-	"ssv/go/update"
-	"ssv/go/version"
+	"ssv/go/system/update"
 
 	"github.com/urfave/cli/v3"
 )
-
-type AppNameKey struct{}
 
 var Update = &cli.Command{
 	Name:  "update",
 	Usage: "update the application",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
-		version := version.FromContext(ctx)
-		if version == "" {
-			return fmt.Errorf("failed to get appVersion from context")
-		}
 		return update.Update(ctx, false)
 	},
 }
