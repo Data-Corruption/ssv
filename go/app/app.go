@@ -7,7 +7,7 @@ import (
 type AppData struct {
 	Name      string
 	Version   string
-	UrlPrefix string
+	UrlPrefix string // format: https://example.com:port/ :port being omitted if 80/443
 }
 
 type ctxKey struct{}

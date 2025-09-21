@@ -5,10 +5,6 @@ import (
 	"net/mail"
 	"net/smtp"
 	"ssv/go/database/config"
-	"strings"
-
-	"vendor/golang.org/x/net/idna"
-	"vendor/golang.org/x/text/unicode/norm"
 
 	"github.com/Data-Corruption/stdx/xhttp"
 )
@@ -41,28 +37,6 @@ func GetConfig(ctx context.Context) (string, string, error) {
 func IsAddressValid(email string) bool {
 	_, err := mail.ParseAddress(email)
 	return err == nil
-}
-
-// NormalizeAddress normalizes the given email address to a standard format.
-// This is lazy/conservative for uniqueness checks, Sending should use raw address.
-func NormalizeAddress(addr string) (string, error) {
-	parsed, err := mail.ParseAddress(strings.TrimSpace(addr))
-	if err != nil {
-		return "", err
-	}
-	parts := strings.SplitN(parsed.Address, "@", 2)
-	if len(parts) != 2 {
-		return "", err
-	}
-	local := norm.NFC.String(parts[0])
-	domain := norm.NFC.String(parts[1])
-	domain = strings.TrimSuffix(domain, ".")
-	domain = strings.ToLower(domain)
-	domainASCII, err := idna.Lookup.ToASCII(domain)
-	if err != nil {
-		return "", err
-	}
-	return strings.ToLower(local) + "@" + domainASCII, nil
 }
 
 // SendEmail sends an email to the specified email address.

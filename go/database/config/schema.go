@@ -32,8 +32,12 @@ var SchemaRecord = map[string]schema{
 		"port":            &value[int]{28080},
 		"proxyPort":       &value[int]{0}, // 0 means no proxy
 		"proxyTLS":        &value[bool]{true},
+		"emailSender":     &value[string]{""},
+		"emailPassword":   &value[string]{""},
+		"ppVersion":       &value[int]{1},     // privacy policy version in use
+		"newPpDate":       &value[string]{""}, // date new pp goes into effect, empty if none, RFC3339 format
 		"updateNotify":    &value[bool]{true},
-		"lastUpdateCheck": &value[string]{time.Now().Format(time.RFC3339)},
+		"lastUpdateCheck": &value[string]{time.Now().Format(time.RFC3339)}, // time of last update check in RFC3339 format
 		"updateAvailable": &value[bool]{false},
 	},
 	/*
