@@ -9,6 +9,7 @@ import (
 	"ssv/go/database/config"
 	"ssv/go/services/crypto"
 	"ssv/go/services/email"
+	"strings"
 	"time"
 
 	"github.com/Data-Corruption/lmdb-go/lmdb"
@@ -44,13 +45,10 @@ func StartUserInvite(ctx context.Context, userEmail string, perms []string) erro
 			return err
 		}
 		// gen invite token
-		rawToken, err := crypto.GenRandomString(32)
+		inviteKey, rawToken, err := genKey(txn, userDBI, "invite.", 32, true)
 		if err != nil {
 			return err
 		}
-		prefix := []byte("invite.")
-		hash := sha256.Sum256([]byte(rawToken))
-		inviteKey := append(prefix, hash[:]...)
 		// create user
 		newUser := User{
 			Perms:        perms,
@@ -64,32 +62,24 @@ func StartUserInvite(ctx context.Context, userEmail string, perms []string) erro
 			return err
 		}
 		// gen user ID
-		var newUserID []byte
-		for i := 0; i < 10; i++ {
-			randStr, err := crypto.GenRandomString(16)
-			if err != nil {
-				return err
-			}
-			newUserID = append([]byte("user."), []byte(randStr)...)
-			if _, err := txn.Get(userDBI, newUserID); lmdb.IsNotFound(err) {
-				break
-			}
-		}
-		// write user
-		if err := txn.Put(userDBI, newUserID, userBytes, 0); err != nil {
+		newUserKey, _, err := genKey(txn, userDBI, "user.", 16, false)
+		if err != nil {
 			return err
 		}
-		// write email and invite index
-		if err := txn.Put(userDBI, emailKey, newUserID, 0); err != nil {
+		// write user and mappings
+		if err := txn.Put(userDBI, newUserKey, userBytes, 0); err != nil {
 			return err
 		}
-		if err := txn.Put(userDBI, inviteKey, newUserID, 0); err != nil {
+		if err := txn.Put(userDBI, emailKey, newUserKey, 0); err != nil {
+			return err
+		}
+		if err := txn.Put(userDBI, inviteKey, newUserKey, 0); err != nil {
 			return err
 		}
 		// send invite email
 		inviteLink := fmt.Sprintf("%sinvite?auth=%s", appData.UrlPrefix, rawToken)
-		subject := "You've been invited to an SVLens instance!"
-		body := fmt.Sprintf("You've been invited to an SVLens instance! Click the link below to create your account.\n\n%s\n\nNote: This invite expires after %d hours.", inviteLink, InviteMaxAgeHours)
+		subject := fmt.Sprintf("You've been invited to a %s instance!", strings.ToUpper(appData.Name))
+		body := fmt.Sprintf("You've been invited to an %s instance! Click the link below to create your account.\n\n%s\n\nNote: This invite expires after %d hours.", strings.ToUpper(appData.Name), inviteLink, InviteMaxAgeHours)
 		return email.SendEmail(ctx, userEmail, subject, body)
 	})
 }
@@ -168,11 +158,9 @@ func CompleteUserInvite(ctx context.Context, token, username, password string) e
 		user.AgreedPP = ppVersion
 		user.Notified = true // no need to notify of a policy update they just agreed to
 		// write user
-		updatedBytes, err := json.Marshal(user)
-		if err != nil {
+		if updatedBytes, err := json.Marshal(user); err != nil {
 			return fmt.Errorf("failed to marshal updated user: %w", err)
-		}
-		if err := txn.Put(userDBI, userKey, updatedBytes, 0); err != nil {
+		} else if err := txn.Put(userDBI, userKey, updatedBytes, 0); err != nil {
 			return fmt.Errorf("failed to save updated user: %w", err)
 		}
 		// delete invite key

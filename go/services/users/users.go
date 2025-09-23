@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"ssv/go/database"
+	"ssv/go/services/crypto"
 	"strings"
 	"time"
 
@@ -93,21 +94,21 @@ func GetAllUsers(ctx context.Context) ([]User, error) {
 	return out, err
 }
 
-// GetUserByID retrieves a user by their ID.
+// GetUserByKey retrieves a user by their key.
 // Use lmdb.IsNotFound(err) to check if the user was not found.
-func GetUserByID(ctx context.Context, id []byte) (*User, error) {
+func GetUserByKey(ctx context.Context, userKey []byte) (*User, error) {
 	db := database.FromContext(ctx)
 	if db == nil {
 		return nil, errors.New("failed to get database from context")
 	}
 	var user User
-	if bytes, err := db.Read(database.UserDBIName, id); err != nil {
+	if bytes, err := db.Read(database.UserDBIName, userKey); err != nil {
 		return nil, err
 	} else if err := json.Unmarshal(bytes, &user); err != nil {
 		return nil, err
 	}
 	// add id, redact secrets
-	user.ID = id
+	user.ID = userKey
 	user.PassSalt = ""
 	user.PassHash = ""
 	return &user, nil
@@ -122,12 +123,12 @@ func GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	if bytes, err := db.Read(database.UserDBIName, emailToKey(email)); err != nil {
 		return nil, err
 	} else if len(bytes) != 0 {
-		return GetUserByID(ctx, bytes)
+		return GetUserByKey(ctx, bytes)
 	}
 	return nil, fmt.Errorf("user with email %s not found", email)
 }
 
-func RemoveUser(ctx context.Context, id []byte) error {
+func RemoveUser(ctx context.Context, userKey []byte) error {
 	db, userDBI, err := getUserDB(ctx)
 	if err != nil {
 		return err
@@ -135,44 +136,44 @@ func RemoveUser(ctx context.Context, id []byte) error {
 	return db.Update(func(txn *lmdb.Txn) error {
 		// get user
 		var user User
-		if bytes, err := txn.Get(userDBI, id); err != nil {
+		if bytes, err := txn.Get(userDBI, userKey); err != nil {
 			return err
 		} else if err := json.Unmarshal(bytes, &user); err != nil {
 			return err
 		}
 		if len(user.EmailKey) == 0 {
-			return fmt.Errorf("user email key is empty: %x", id)
+			return fmt.Errorf("user email key is empty: %x", userKey)
 		}
 		// delete email -> id mapping
 		if err := txn.Del(userDBI, user.EmailKey, nil); err != nil && !lmdb.IsNotFound(err) {
-			return fmt.Errorf("failed to delete email key for user %x: %w", id, err)
+			return fmt.Errorf("failed to delete email key for user %x: %w", userKey, err)
 		}
 		// delete other keys if they != 0
 		if len(user.InviteKey) > 0 {
 			if err := txn.Del(userDBI, user.InviteKey, nil); err != nil && !lmdb.IsNotFound(err) {
-				return fmt.Errorf("failed to delete invite key for user %x: %w", id, err)
+				return fmt.Errorf("failed to delete invite key for user %x: %w", userKey, err)
 			}
 		}
 		if len(user.EmailEditKey) > 0 {
 			if err := txn.Del(userDBI, user.EmailEditKey, nil); err != nil && !lmdb.IsNotFound(err) {
-				return fmt.Errorf("failed to delete email edit key for user %x: %w", id, err)
+				return fmt.Errorf("failed to delete email edit key for user %x: %w", userKey, err)
 			}
 		}
 		if len(user.PassEditKey) > 0 {
 			if err := txn.Del(userDBI, user.PassEditKey, nil); err != nil && !lmdb.IsNotFound(err) {
-				return fmt.Errorf("failed to delete pass edit key for user %x: %w", id, err)
+				return fmt.Errorf("failed to delete pass edit key for user %x: %w", userKey, err)
 			}
 		}
 		// delete user
-		if err := txn.Del(userDBI, id, nil); err != nil {
-			return fmt.Errorf("failed to delete user %x: %w", id, err)
+		if err := txn.Del(userDBI, userKey, nil); err != nil {
+			return fmt.Errorf("failed to delete user %x: %w", userKey, err)
 		}
 		return nil
 	})
 }
 
 // SetUserPerms sets the given user's permissions.
-func SetUserPerms(ctx context.Context, id []byte, perms []string) error {
+func SetUserPerms(ctx context.Context, userKey []byte, perms []string) error {
 	// TODO validate perms?
 	db, userDBI, err := getUserDB(ctx)
 	if err != nil {
@@ -181,7 +182,7 @@ func SetUserPerms(ctx context.Context, id []byte, perms []string) error {
 	return db.Update(func(txn *lmdb.Txn) error {
 		// get user
 		var user User
-		if bytes, err := txn.Get(userDBI, id); err != nil {
+		if bytes, err := txn.Get(userDBI, userKey); err != nil {
 			return err
 		} else if err := json.Unmarshal(bytes, &user); err != nil {
 			return err
@@ -191,7 +192,7 @@ func SetUserPerms(ctx context.Context, id []byte, perms []string) error {
 		// save
 		if updatedBytes, err := json.Marshal(user); err != nil {
 			return err
-		} else if err := txn.Put(userDBI, id, updatedBytes, 0); err != nil {
+		} else if err := txn.Put(userDBI, userKey, updatedBytes, 0); err != nil {
 			return err
 		}
 		return nil
@@ -200,7 +201,7 @@ func SetUserPerms(ctx context.Context, id []byte, perms []string) error {
 
 // SetUserEmail sets the given user's email, updating the email -> id mapping as well.
 // Use with caution, this bypasses email verification and is intended for admin use only.
-func SetUserEmail(ctx context.Context, id []byte, newEmail string) error {
+func SetUserEmail(ctx context.Context, userKey []byte, newEmail string) error {
 	db, userDBI, err := getUserDB(ctx)
 	if err != nil {
 		return err
@@ -208,14 +209,14 @@ func SetUserEmail(ctx context.Context, id []byte, newEmail string) error {
 	return db.Update(func(txn *lmdb.Txn) error {
 		// get user
 		var user User
-		if bytes, err := txn.Get(userDBI, id); err != nil {
+		if bytes, err := txn.Get(userDBI, userKey); err != nil {
 			return err
 		} else if err := json.Unmarshal(bytes, &user); err != nil {
 			return err
 		}
 		// delete old email mapping
 		if err := txn.Del(userDBI, user.EmailKey, nil); err != nil && !lmdb.IsNotFound(err) {
-			return fmt.Errorf("failed to delete old email key for user %x: %w", id, err)
+			return fmt.Errorf("failed to delete old email key for user %x: %w", userKey, err)
 		}
 		// set new email
 		user.Email = newEmail
@@ -223,11 +224,11 @@ func SetUserEmail(ctx context.Context, id []byte, newEmail string) error {
 		// save user
 		if updatedBytes, err := json.Marshal(user); err != nil {
 			return err
-		} else if err := txn.Put(userDBI, id, updatedBytes, 0); err != nil {
+		} else if err := txn.Put(userDBI, userKey, updatedBytes, 0); err != nil {
 			return err
 		}
 		// create new email mapping
-		if err := txn.Put(userDBI, user.EmailKey, id, 0); err != nil {
+		if err := txn.Put(userDBI, user.EmailKey, userKey, 0); err != nil {
 			return err
 		}
 		return nil
@@ -235,7 +236,7 @@ func SetUserEmail(ctx context.Context, id []byte, newEmail string) error {
 }
 
 // ResetUserFailedLogins clears the user's failed login attempts.
-func ResetUserFailedLogins(ctx context.Context, id []byte) error {
+func ResetUserFailedLogins(ctx context.Context, userKey []byte) error {
 	db, userDBI, err := getUserDB(ctx)
 	if err != nil {
 		return err
@@ -243,7 +244,7 @@ func ResetUserFailedLogins(ctx context.Context, id []byte) error {
 	return db.Update(func(txn *lmdb.Txn) error {
 		// get user
 		var user User
-		if bytes, err := txn.Get(userDBI, id); err != nil {
+		if bytes, err := txn.Get(userDBI, userKey); err != nil {
 			return err
 		} else if err := json.Unmarshal(bytes, &user); err != nil {
 			return err
@@ -253,7 +254,7 @@ func ResetUserFailedLogins(ctx context.Context, id []byte) error {
 		// save
 		if updatedBytes, err := json.Marshal(user); err != nil {
 			return err
-		} else if err := txn.Put(userDBI, id, updatedBytes, 0); err != nil {
+		} else if err := txn.Put(userDBI, userKey, updatedBytes, 0); err != nil {
 			return err
 		}
 		return nil
@@ -261,9 +262,39 @@ func ResetUserFailedLogins(ctx context.Context, id []byte) error {
 }
 
 // TODO implement
-func ExportUserData(ctx context.Context, id []byte) (string, error) {
+func ExportUserData(ctx context.Context, userKey []byte) (string, error) {
 	// Will need to get user struct, omitting auth tokens and such.
 	// Also will need to zip all cached user data. That will be a lot so I'll need to probs do a multi-part tar.gz
 	// and provide it as a download link behind basic session auth.
 	return "", errors.New("not implemented")
+}
+
+// genKey generates a unique token key with the given prefix and length
+// tries up to 10 times to get a unique key, returns error if it fails
+// if hash is true, the token is hashed with sha256 before being used as key
+func genKey(txn *lmdb.Txn, dbi lmdb.DBI, prefix string, tokenLength int, hash bool) ([]byte, string, error) {
+	var key []byte
+	var token string
+	var err error
+	isUnique := false
+	for i := 0; i < 10; i++ {
+		token, err = crypto.GenRandomString(tokenLength)
+		if err != nil {
+			return nil, "", err
+		}
+		if hash {
+			hash := sha256.Sum256([]byte(token))
+			key = append([]byte(prefix), hash[:]...)
+		} else {
+			key = append([]byte(prefix), []byte(token)...)
+		}
+		if _, err := txn.Get(dbi, key); lmdb.IsNotFound(err) {
+			isUnique = true
+			break
+		}
+	}
+	if !isUnique {
+		return nil, "", fmt.Errorf("failed to generate unique token key")
+	}
+	return key, token, nil
 }
