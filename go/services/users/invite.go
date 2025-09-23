@@ -14,7 +14,6 @@ import (
 
 	"github.com/Data-Corruption/lmdb-go/lmdb"
 	"github.com/Data-Corruption/stdx/xhttp"
-	"github.com/Data-Corruption/stdx/xlog"
 	"golang.org/x/time/rate"
 )
 
@@ -55,6 +54,7 @@ func StartUserInvite(ctx context.Context, userEmail string, perms []string) erro
 			Email:        userEmail,
 			CreatedAt:    time.Now().UTC(),
 			InviteExpiry: time.Now().Add(InviteMaxAgeHours * time.Hour).UTC(),
+			EmailKey:     emailKey,
 			InviteKey:    inviteKey,
 		}
 		userBytes, err := json.Marshal(newUser)
@@ -84,8 +84,11 @@ func StartUserInvite(ctx context.Context, userEmail string, perms []string) erro
 	})
 }
 
-// burst 5, sustained 5 req/s (12.5k attempts per our 12 hour window)
-var inviteLimiter = rate.NewLimiter(rate.Every(200*time.Millisecond), 5)
+var (
+	// burst 5, sustained 5 req/s (12.5k attempts per our 12 hour window)
+	inviteLimiter    = rate.NewLimiter(rate.Every(200*time.Millisecond), 5)
+	ExpiredInviteErr = &xhttp.Err{Code: 400, Msg: "invite expired", Err: nil}
+)
 
 // CompleteUserInvite completes the user invite process.
 func CompleteUserInvite(ctx context.Context, token, username, password string) error {
@@ -116,7 +119,8 @@ func CompleteUserInvite(ctx context.Context, token, username, password string) e
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
-	expired := false
+	// start txn
+	var returnErr error // var to hold errors that should not abort txn
 	err = db.Update(func(txn *lmdb.Txn) error {
 		// calculate invite key
 		prefix := []byte("invite.")
@@ -137,17 +141,22 @@ func CompleteUserInvite(ctx context.Context, token, username, password string) e
 		} else if err := json.Unmarshal(bytes, &user); err != nil {
 			return fmt.Errorf("failed to unmarshal user: %w", err)
 		}
-		// check if invite is still valid
+		// delete invite key
+		if err := txn.Del(userDBI, inviteKey, nil); err != nil && !lmdb.IsNotFound(err) {
+			return fmt.Errorf("failed to delete invite key: %w", err)
+		}
+		// if invite expired, delete user and email key, set returnErr to ExpiredInviteErr
 		if user.InviteExpiry.Before(time.Now()) {
-			expired = true
-			// delete invite key and user
-			if err := txn.Del(userDBI, inviteKey, nil); err != nil && !lmdb.IsNotFound(err) {
-				xlog.Errorf(ctx, "failed to delete expired invite key: %s", err)
-			}
+			returnErr = ExpiredInviteErr
+			// delete user
 			if err := txn.Del(userDBI, userKey, nil); err != nil && !lmdb.IsNotFound(err) {
-				xlog.Errorf(ctx, "failed to delete expired user: %s", err)
+				return fmt.Errorf("failed to delete expired user: %w", err)
 			}
-			return nil
+			// delete email key
+			if err := txn.Del(userDBI, user.EmailKey, nil); err != nil && !lmdb.IsNotFound(err) {
+				return fmt.Errorf("failed to delete email key for expired user: %s", err)
+			}
+			return nil // nil so we commit the txn
 		}
 		// update user
 		user.Name = username
@@ -157,20 +166,15 @@ func CompleteUserInvite(ctx context.Context, token, username, password string) e
 		user.InviteExpiry = time.Time{}
 		user.AgreedPP = ppVersion
 		user.Notified = true // no need to notify of a policy update they just agreed to
-		// write user
 		if updatedBytes, err := json.Marshal(user); err != nil {
 			return fmt.Errorf("failed to marshal updated user: %w", err)
 		} else if err := txn.Put(userDBI, userKey, updatedBytes, 0); err != nil {
 			return fmt.Errorf("failed to save updated user: %w", err)
 		}
-		// delete invite key
-		if err := txn.Del(userDBI, inviteKey, nil); err != nil && !lmdb.IsNotFound(err) {
-			return fmt.Errorf("failed to delete invite key: %w", err)
-		}
 		return nil
 	})
-	if expired {
-		return &xhttp.Err{Code: 400, Msg: "invite expired", Err: nil}
+	if returnErr != nil {
+		return returnErr
 	}
 	return err
 }

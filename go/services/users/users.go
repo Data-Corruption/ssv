@@ -30,7 +30,7 @@ type User struct {
 	PassHash  string   `json:"passHash"`
 	// times are in UTC
 	CreatedAt       time.Time   `json:"createdAt"`
-	LoginFails      []time.Time `json:"loginFails"` // times of failed login attempts
+	FailedLogins    []time.Time `json:"failedLogins"` // times of failed login attempts
 	InviteExpiry    time.Time   `json:"inviteExpiry"`
 	EmailEditExpiry time.Time   `json:"emailEditExpiry"`
 	PassEditExpiry  time.Time   `json:"passEditExpiry"`
@@ -250,7 +250,7 @@ func ResetUserFailedLogins(ctx context.Context, userKey []byte) error {
 			return err
 		}
 		// reset failed logins
-		user.LoginFails = []time.Time{}
+		user.FailedLogins = []time.Time{}
 		// save
 		if updatedBytes, err := json.Marshal(user); err != nil {
 			return err
